@@ -266,7 +266,7 @@ export default function StatementIntelligence() {
 
             <div className="space-y-4">
               <p className="text-xs text-slate-300 leading-relaxed">
-                Are you sure you want to delete <span className="font-bold text-slate-100">"{statements.find(s => s.id === deleteConfirmId)?.filename}"</span>?
+                Are you sure you want to delete <span className="font-bold text-slate-100">&ldquo;{statements.find(s => s.id === deleteConfirmId)?.filename}&rdquo;</span>?
               </p>
               <div className="bg-rose-500/5 border border-rose-500/10 rounded-xl p-3 text-[11px] text-rose-400/90 leading-relaxed">
                 <p className="font-bold uppercase tracking-wider text-[9px] mb-1">⚠️ Warning</p>

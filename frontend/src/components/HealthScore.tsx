@@ -82,7 +82,7 @@ export default function HealthScore({ score, status, breakdown, recommendation }
 
         <p className="text-xs text-slate-300 italic bg-slate-900/40 p-3 rounded-xl border border-slate-800/40 relative">
           <span className="text-blue-400 font-bold not-italic block text-[10px] uppercase tracking-wider mb-1">AI Coach Recommendation</span>
-          "{recommendation}"
+          &ldquo;{recommendation}&rdquo;
         </p>
 
         <div className="space-y-1.5">

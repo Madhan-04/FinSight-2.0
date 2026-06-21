@@ -130,7 +130,7 @@ export default function AnalyticsCenter() {
                 <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-blue-400 animate-pulse" /> Expense Forecasting
                 </h3>
-                <p className="text-[11px] text-slate-500 mt-0.5">Projecting next month's cash outflow using trend models.</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">Projecting next month&apos;s cash outflow using trend models.</p>
               </div>
               <span className={`
                 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1
@@ -309,7 +309,7 @@ export default function AnalyticsCenter() {
                       <span>Target Limit: {formatCurrency(item.suggested_limit)}</span>
                     </div>
                     <p className="text-[10px] text-slate-400 bg-slate-950/20 p-2.5 rounded border border-slate-900/60 leading-normal italic">
-                      "{item.rationale}"
+                      &ldquo;{item.rationale}&rdquo;
                     </p>
                   </div>
                 ))}

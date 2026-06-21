@@ -261,7 +261,7 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
-    fetchFinanceData();
+    fetchFinanceData(); // eslint-disable-line react-hooks/exhaustive-deps
   }, [selectedMonth]);
 
   const uploadStatement = async (file: File, password?: string): Promise<Statement> => {

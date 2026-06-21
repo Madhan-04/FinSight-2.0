@@ -284,7 +284,7 @@ export default function SavingsGoals() {
                         <span className="font-extrabold text-slate-200">{probDetails.expected_months} Months</span>
                       </div>
                       <p className="text-[10px] leading-snug italic text-slate-400 font-medium border-t border-slate-900 pt-1.5">
-                        "{probDetails.suggestions}"
+                        &ldquo;{probDetails.suggestions}&rdquo;
                       </p>
                     </div>
                   )}

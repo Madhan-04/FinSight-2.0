@@ -468,7 +468,7 @@ export default function Dashboard() {
                   </span>
                 </div>
                 <p className="text-xs text-slate-300 bg-slate-950/40 p-4 rounded-xl border border-slate-900/60 leading-relaxed italic">
-                  "{diagnosisReport.executive_summary}"
+                  &ldquo;{diagnosisReport.executive_summary}&rdquo;
                 </p>
               </div>
 

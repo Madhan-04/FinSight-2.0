@@ -191,7 +191,7 @@ export default function UploadZone() {
               <p className="text-sm font-bold text-slate-200">Upload Failed</p>
               <p className="text-xs text-rose-400 font-semibold">{errorMessage}</p>
               <p className="text-[10px] text-slate-500 mt-3 max-w-md mx-auto">
-                Double-check that the file isn't password protected or corrupt. Try uploading a screenshot or CSV if the PDF fails.
+                Double-check that the file isn&apos;t password protected or corrupt. Try uploading a screenshot or CSV if the PDF fails.
               </p>
             </div>
             <button 
@@ -211,7 +211,7 @@ export default function UploadZone() {
             <div className="text-center">
               <p className="text-xs font-bold text-slate-200">Password Protected Document</p>
               <p className="text-[10px] text-slate-400 mt-1">
-                The file <span className="font-semibold text-slate-300">"{fileName}"</span> is encrypted. Enter the password to decrypt:
+                The file <span className="font-semibold text-slate-300">&ldquo;{fileName}&rdquo;</span> is encrypted. Enter the password to decrypt:
               </p>
             </div>
             
