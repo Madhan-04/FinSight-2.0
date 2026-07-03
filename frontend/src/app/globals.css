@@ -4,21 +4,25 @@
 
 :root {
   --foreground-rgb: 248, 250, 252; /* slate-50 */
-  --background-start-rgb: 6, 9, 17; /* very dark deep blue */
-  --background-end-rgb: 2, 3, 5;
+  --background-start-rgb: 11, 18, 32; /* Deep Navy Blue (#0B1220) */
+  --background-end-rgb: 4, 6, 12;     /* Darker deep navy */
+  --primary-blue: 37, 99, 235;        /* Royal Blue (#2563EB) */
+  --success-green: 16, 185, 129;      /* Emerald (#10B981) */
+  --warning-amber: 245, 158, 11;      /* Amber (#F59E0B) */
+  --danger-crimson: 239, 68, 68;      /* Crimson (#EF4444) */
 }
 
 body {
   color: rgb(var(--foreground-rgb));
   background: radial-gradient(
-      circle at 30% 20%,
-      rgba(59, 130, 246, 0.07) 0%, /* blue glow */
-      transparent 45%
+      circle at 20% 15%,
+      rgba(37, 99, 235, 0.08) 0%, /* royal blue glow */
+      transparent 50%
     ),
     radial-gradient(
-      circle at 70% 80%,
-      rgba(6, 182, 212, 0.06) 0%, /* cyan glow */
-      transparent 45%
+      circle at 80% 85%,
+      rgba(99, 102, 241, 0.06) 0%, /* indigo glow */
+      transparent 50%
     ),
     linear-gradient(
       to bottom,
@@ -32,58 +36,58 @@ body {
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.2);
+  background: rgba(11, 18, 32, 0.3);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(100, 116, 139, 0.3);
-  border-radius: 4px;
+  background: rgba(100, 116, 139, 0.2);
+  border-radius: 6px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(59, 130, 246, 0.5); /* blue hover */
+  background: rgba(37, 99, 235, 0.45); /* royal blue hover */
 }
 
 /* Luxury animations */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(6px); }
+  from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 /* Glassmorphism helpers */
 .glass-panel {
-  backdrop-filter: blur(20px);
-  background-color: rgba(15, 23, 42, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(25px);
+  background-color: rgba(11, 18, 32, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .glass-panel-hover {
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .glass-panel-hover:hover {
-  border-color: rgba(59, 130, 246, 0.25);
-  box-shadow: 0 12px 30px -15px rgba(59, 130, 246, 0.12);
-  transform: translateY(-2px);
+  border-color: rgba(37, 99, 235, 0.22);
+  box-shadow: 0 16px 36px -16px rgba(37, 99, 235, 0.15);
+  transform: translateY(-2.5px);
 }
 
 .glass-input {
-  background-color: rgba(15, 23, 42, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  transition: all 0.2s ease-in-out;
+  background-color: rgba(4, 6, 12, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .glass-input:focus {
-  border-color: rgba(59, 130, 246, 0.55); /* blue focus */
-  box-shadow: 0 0 12px rgba(59, 130, 246, 0.18);
+  border-color: rgba(37, 99, 235, 0.5); /* royal blue focus */
+  box-shadow: 0 0 14px rgba(37, 99, 235, 0.16);
   outline: none;
 }
