@@ -3,14 +3,13 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import Image from 'next/image';
 import { 
   LayoutDashboard, 
   FileSpreadsheet, 
   TrendingUp, 
   Target, 
   MessageSquare,
-  Sparkles,
-  Zap,
   ShieldCheck,
   Heart,
   Menu,
@@ -34,18 +33,15 @@ export default function Sidebar() {
   const NavContent = () => (
     <>
       {/* Brand Logo */}
-      <div className="flex items-center gap-3 mb-8 px-2">
-        <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-[0_4px_15px_-3px_rgba(99,102,241,0.3)] flex-shrink-0">
-          <Sparkles className="w-4 h-4 text-white" />
-        </div>
-        <div>
-          <h1 className="font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-slate-200 text-base leading-none tracking-tight">
-            FinSight AI
-          </h1>
-          <span className="text-[9px] uppercase font-black text-indigo-400 tracking-widest flex items-center gap-1 mt-1 leading-none">
-            <Zap className="w-2.5 h-2.5 fill-indigo-400 text-indigo-400" /> Version 4.0
-          </span>
-        </div>
+      <div className="mb-8 px-1">
+        <Image
+          src="/logo.png"
+          alt="FinSight AI"
+          width={180}
+          height={60}
+          className="object-contain w-auto h-12"
+          priority
+        />
       </div>
 
       {/* Navigation Items */}
@@ -99,14 +95,15 @@ export default function Sidebar() {
 
       {/* ── Mobile Top Bar ── */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 py-3 bg-slate-950/90 backdrop-blur-xl border-b border-white/[0.04]">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center">
-            <Sparkles className="w-3.5 h-3.5 text-white" />
-          </div>
-          <div>
-            <span className="font-black text-white text-sm leading-none tracking-tight">FinSight AI</span>
-            <span className="text-[8px] uppercase font-black text-indigo-400 tracking-widest block mt-0.5">Version 4.0</span>
-          </div>
+        <div className="flex items-center">
+          <Image
+            src="/logo.png"
+            alt="FinSight AI"
+            width={130}
+            height={44}
+            className="object-contain h-9 w-auto"
+            priority
+          />
         </div>
         <button
           onClick={() => setMobileOpen(!mobileOpen)}

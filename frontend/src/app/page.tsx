@@ -2,8 +2,8 @@
 
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { 
-  Sparkles, 
   ShieldCheck, 
   ArrowRight, 
   TrendingUp, 
@@ -15,7 +15,8 @@ import {
   Activity,
   Target,
   MessageSquare,
-  CheckCircle
+  CheckCircle,
+  Sparkles
 } from 'lucide-react';
 import GlassCard from '../components/GlassCard';
 
@@ -85,16 +86,15 @@ export default function LandingPage() {
 
       {/* ── Navigation Bar ── */}
       <nav className="relative z-20 max-w-7xl mx-auto px-6 pt-6 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-[0_4px_20px_-4px_rgba(99,102,241,0.4)]">
-            <Sparkles className="w-4 h-4 text-white" />
-          </div>
-          <div>
-            <span className="font-black text-white text-sm leading-none tracking-tight">FinSight AI</span>
-            <span className="text-[9px] uppercase font-black text-indigo-400 tracking-widest flex items-center gap-1 mt-0.5 leading-none">
-              <Zap className="w-2.5 h-2.5 fill-indigo-400" /> Version 4.0
-            </span>
-          </div>
+        <div className="flex items-center">
+          <Image
+            src="/logo.png"
+            alt="FinSight AI"
+            width={160}
+            height={54}
+            className="object-contain h-11 w-auto"
+            priority
+          />
         </div>
         <div className="flex items-center gap-3">
           <Link
