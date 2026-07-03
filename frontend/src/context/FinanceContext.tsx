@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useMe
 import { StorageService, DBTransaction, DBStatement, DBGoal, DBChatMessage } from '../services/storage';
 import { FinancialAnalyzer, Transaction, Goal } from '../services/analyzer';
 import { MockAiService } from '../services/mockAi';
+import { parseStatement } from '../services/statementParser';
 
 export type { Transaction, Goal };
 
@@ -272,70 +273,24 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
     fetchFinanceData();
   }, [selectedMonth]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Client-side local parsing file logic (OCR scanner simulation / CSV Reader)
+  // Real client-side statement parser — CSV, XLSX, PDF
   const uploadStatement = async (file: File, password?: string): Promise<Statement> => {
-    // Simulate parsing lag for premium WOW UX
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    // Parse the real file using the statement parser service
+    const parsed = await parseStatement(file, password);
 
-    let filename = file.name;
-    let bank_name = 'ICICI Bank';
-    let period = '01-06-2026 to 30-06-2026';
-    let extractedTxs: Omit<Transaction, 'id'>[] = [];
-
-    // Parse simple CSV if provided
-    if (filename.endsWith('.csv')) {
-      try {
-        const text = await file.text();
-        const lines = text.split('\n');
-        
-        lines.slice(1).forEach((line, index) => {
-          if (!line.trim()) return;
-          const cols = line.split(',');
-          if (cols.length >= 5) {
-            // Assume format: Date, Description, Amount, Type, Category
-            const date = cols[0].trim();
-            const desc = cols[1].trim();
-            const amount = parseFloat(cols[2].trim()) || 100;
-            const type = cols[3].trim().toLowerCase() === 'credit' ? 'credit' : 'debit';
-            const category = cols[4]?.trim() || 'Other Expenses';
-            
-            extractedTxs.push({
-              date,
-              raw_description: desc,
-              merchant: desc.split(' ')[0] || 'Merchant',
-              amount,
-              type: type as 'credit' | 'debit',
-              category,
-              payment_method: desc.includes('UPI') ? 'UPI' : 'Card',
-              is_recurring: false
-            });
-          }
-        });
-      } catch (err) {
-        console.error("Local CSV parsing failed, fallback to mock generation", err);
-      }
+    // If parser returned a hard error (not password), throw it
+    if (parsed.error && parsed.transactions.length === 0) {
+      throw new Error(parsed.error);
     }
 
-    // Default mock data generation if CSV is empty or it is a PDF/Image
-    if (extractedTxs.length === 0) {
-      bank_name = filename.toLowerCase().includes('sbi') ? 'State Bank of India' : 
-                  filename.toLowerCase().includes('hdfc') ? 'HDFC Bank' : 'ICICI Bank';
-      
-      extractedTxs = [
-        { date: '2026-06-01', raw_description: 'PAYROLL CREDIT DIRECT', merchant: 'Corporate Salary', amount: 65000, type: 'credit', category: 'Salary Credit', payment_method: 'NEFT', is_recurring: true },
-        { date: '2026-06-03', raw_description: 'UPI/9988/AMAZON/GPAY', merchant: 'Amazon Shopping', amount: 1450, type: 'debit', category: 'Shopping & Entertainment', payment_method: 'UPI', is_recurring: false },
-        { date: '2026-06-05', raw_description: 'UPI/7766/SWIGGY/FOOD', merchant: 'Swiggy Food', amount: 390, type: 'debit', category: 'Food & Dining', payment_method: 'UPI', is_recurring: false },
-        { date: '2026-06-08', raw_description: 'CARD/NETFLIX STREAMING', merchant: 'Netflix', amount: 649, type: 'debit', category: 'Bills & Subscriptions', payment_method: 'Card', is_recurring: true },
-        { date: '2026-06-10', raw_description: 'UPI/8899/RENT/GPAY', merchant: 'Flat rent', amount: 12000, type: 'debit', category: 'Rent & Living', payment_method: 'UPI', is_recurring: true },
-        { date: '2026-06-15', raw_description: 'UPI/6677/SPORTSFIT/GPAY', merchant: 'SportsFit Gym', amount: 1500, type: 'debit', category: 'Bills & Subscriptions', payment_method: 'UPI', is_recurring: true },
-        { date: '2026-06-20', raw_description: 'UPI/5544/GPAY/ZOMATO', merchant: 'Zomato Food', amount: 680, type: 'debit', category: 'Food & Dining', payment_method: 'UPI', is_recurring: false },
-        { date: '2026-06-28', raw_description: 'UPI/3322/BLINKIT/GPAY', merchant: 'BlinkIt delivery', amount: 940, type: 'debit', category: 'Food & Dining', payment_method: 'UPI', is_recurring: false }
-      ];
-    }
+    const filename = file.name;
+    const bank_name = parsed.bank_name || 'Unknown Bank';
+    const period = parsed.period || 'Unknown Period';
+    const extractedTxs: Omit<Transaction, 'id'>[] = parsed.transactions;
 
     const total_transactions = extractedTxs.length;
-    const total_debits = extractedTxs.filter(t => t.type === 'debit').reduce((acc, t) => acc + t.amount, 0);
-    const total_credits = extractedTxs.filter(t => t.type === 'credit').reduce((acc, t) => acc + t.amount, 0);
+    const total_debits = parsed.total_debits;
+    const total_credits = parsed.total_credits;
 
     const statementMeta: DBStatement = {
       filename,
@@ -348,16 +303,15 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
     };
 
     const addedStatement = await StorageService.add<DBStatement>('statements', statementMeta);
-    
     const statementId = addedStatement.id!;
+
     const txsToSave = extractedTxs.map((tx, idx) => ({
       ...tx,
-      id: statementId * 1000 + idx,
       statement_id: statementId
     }));
 
     await StorageService.bulkAdd<DBTransaction>('transactions', txsToSave);
-    await fetchFinanceData(); // Recalculate local stats
+    await fetchFinanceData();
 
     return {
       id: statementId,
