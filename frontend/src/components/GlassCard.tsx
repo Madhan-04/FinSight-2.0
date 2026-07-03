@@ -11,13 +11,15 @@ export default function GlassCard({ children, className = '', glow = false, hove
   return (
     <div 
       className={`
-        backdrop-blur-xl bg-slate-950/40 border border-slate-800/60 rounded-2xl p-6 
-        transition-all duration-300 
-        ${glow ? 'shadow-[0_0_30px_rgba(59,130,246,0.15)] border-blue-500/20' : ''} 
-        ${hoverGlow ? 'hover:border-blue-500/30 hover:shadow-[0_0_20px_rgba(59,130,246,0.08)] hover:bg-slate-950/50' : ''} 
+        relative backdrop-blur-2xl bg-slate-900/30 border border-white/[0.04] rounded-2xl p-6
+        transition-all duration-300 ease-out
+        ${glow ? 'shadow-[0_0_40px_rgba(99,102,241,0.12)] border-indigo-500/20' : ''} 
+        ${hoverGlow ? 'hover:border-indigo-500/15 hover:shadow-[0_12px_30px_-10px_rgba(99,102,241,0.08)] hover:bg-slate-900/40 hover:-translate-y-0.5' : ''} 
         ${className}
       `}
     >
+      {/* Top lit accent bar */}
+      <div className="absolute top-0 left-6 right-6 h-[1px] bg-gradient-to-r from-transparent via-white/[0.06] to-transparent pointer-events-none" />
       {children}
     </div>
   );

@@ -127,26 +127,26 @@ export default function AIAdvisor() {
   };
 
   return (
-    <div className="space-y-8 animate-fade-in flex flex-col h-[82vh] justify-between">
+    <div className="space-y-6 animate-fade-in-up flex flex-col h-[85vh] justify-between">
       {/* Header Controls */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 flex-shrink-0">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 flex-shrink-0 border-b border-white/[0.04] pb-6">
         <div>
-          <h2 className="text-3xl font-extrabold tracking-tight text-white flex items-center gap-2">
-            AI Literacy Coach <Sparkles className="w-5 h-5 text-blue-400 animate-pulse" />
+          <h2 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-slate-200 tracking-tight flex items-center gap-2">
+            AI Literacy Coach <Sparkles className="w-5 h-5 text-indigo-400 animate-pulse" />
           </h2>
-          <p className="text-slate-300 text-sm mt-1">
+          <p className="text-slate-500 text-xs mt-1 font-medium">
             ChatGPT-style financial advisor and education tutor equipped with voice.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           {/* Education level selector */}
-          <div className="flex items-center bg-slate-900 border border-slate-800 p-1 rounded-xl text-xs font-bold">
+          <div className="flex items-center bg-slate-900/50 border border-white/[0.05] p-1 rounded-xl text-xs font-bold">
             <button
               onClick={() => setEducationLevel('beginner')}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-[10px] uppercase font-black tracking-wider transition-all duration-200 ${
                 educationLevel === 'beginner' 
-                  ? 'bg-blue-600 text-white shadow-sm' 
+                  ? 'bg-indigo-600 text-white shadow-md' 
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
@@ -154,9 +154,9 @@ export default function AIAdvisor() {
             </button>
             <button
               onClick={() => setEducationLevel('intermediate')}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-[10px] uppercase font-black tracking-wider transition-all duration-200 ${
                 educationLevel === 'intermediate' 
-                  ? 'bg-blue-600 text-white shadow-sm' 
+                  ? 'bg-indigo-600 text-white shadow-md' 
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
@@ -164,9 +164,9 @@ export default function AIAdvisor() {
             </button>
             <button
               onClick={() => setEducationLevel('advanced')}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-[10px] uppercase font-black tracking-wider transition-all duration-200 ${
                 educationLevel === 'advanced' 
-                  ? 'bg-blue-600 text-white shadow-sm' 
+                  ? 'bg-indigo-600 text-white shadow-md' 
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
@@ -183,10 +183,10 @@ export default function AIAdvisor() {
                 window.speechSynthesis.cancel();
               }
             }}
-            className={`p-2.5 rounded-xl border transition-all ${
+            className={`p-2 rounded-xl border transition-all duration-200 ${
               voiceEnabled 
-                ? 'bg-blue-600/15 border-blue-500 text-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.15)]' 
-                : 'bg-slate-900 border-slate-800 text-slate-500 hover:text-slate-300'
+                ? 'bg-indigo-600/10 border-indigo-500/40 text-indigo-300 shadow-[0_0_15px_rgba(99,102,241,0.08)]' 
+                : 'bg-slate-900/50 border-white/[0.05] text-slate-500 hover:text-slate-350'
             }`}
             title={voiceEnabled ? "Mute Voice Response" : "Unmute Voice Response"}
           >
@@ -196,7 +196,7 @@ export default function AIAdvisor() {
           {/* Clear history */}
           <button 
             onClick={clearChat}
-            className="p-2.5 bg-slate-900 border border-slate-800 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all"
+            className="p-2 bg-slate-900/50 border border-white/[0.05] text-slate-500 hover:text-rose-455 hover:bg-rose-500/10 rounded-xl transition-all duration-250"
             title="Clear Chat History"
           >
             <Trash2 className="w-4 h-4" />
@@ -205,7 +205,7 @@ export default function AIAdvisor() {
       </div>
 
       {/* Main Conversation Log Container */}
-      <GlassCard className="flex-1 my-4 overflow-y-auto flex flex-col justify-between p-4 min-h-[300px] border-blue-500/5">
+      <GlassCard hoverGlow={false} className="flex-1 my-2 overflow-y-auto flex flex-col justify-between p-6 border-white/[0.04] bg-slate-900/10 min-h-[300px]">
         <div className="space-y-4 pr-1 overflow-y-auto max-h-[50vh] min-h-[220px]">
           {chatHistory.length > 0 ? (
             chatHistory.map((msg) => {
@@ -216,15 +216,15 @@ export default function AIAdvisor() {
                   className={`flex ${isAI ? 'justify-start' : 'justify-end'} animate-fade-in`}
                 >
                   <div className={`
-                    max-w-[85%] rounded-2xl p-4 text-xs leading-relaxed
+                    max-w-[80%] rounded-2xl p-4 text-xs leading-relaxed border
                     ${isAI 
-                      ? 'bg-slate-950/40 border border-slate-900/80 text-slate-200' 
-                      : 'bg-blue-600 text-white shadow-[0_0_15px_rgba(59,130,246,0.15)]'
+                      ? 'bg-slate-950/40 border-white/[0.03] text-slate-200' 
+                      : 'bg-indigo-600 border-indigo-500/40 text-white shadow-[0_4px_15px_-4px_rgba(99,102,241,0.2)]'
                     }
                   `}>
                     <div className="whitespace-pre-wrap">{msg.message}</div>
                     
-                    <span className="block text-[8px] text-slate-400/80 text-right mt-2 uppercase font-medium">
+                    <span className="block text-[8px] text-slate-550 text-right mt-2 uppercase font-extrabold tracking-wider">
                       {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
@@ -232,9 +232,9 @@ export default function AIAdvisor() {
               );
             })
           ) : (
-            <div className="text-center py-16 text-slate-500 text-xs italic space-y-3">
+            <div className="text-center py-16 text-slate-500 text-[11px] italic space-y-4 max-w-sm mx-auto">
               <BookOpen className="w-8 h-8 text-slate-600 mx-auto" />
-              <p>No conversation history. Ask a personal finance question, select your educational mode, or click a lesson below to start.</p>
+              <p className="leading-relaxed">No conversation history. Ask a personal finance question, select your educational mode, or click a lesson below to start.</p>
             </div>
           )}
           
@@ -243,25 +243,25 @@ export default function AIAdvisor() {
       </GlassCard>
 
       {/* Suggested chips & Input panel */}
-      <div className="space-y-4 flex-shrink-0">
+      <div className="space-y-5 flex-shrink-0">
         
         {isListening && <Waveform />}
 
         {/* Suggestion Prompt Chips */}
         {chatHistory.length <= 1 && !isListening && (
-          <div className="space-y-2">
-            <span className="text-[9px] uppercase font-black text-blue-400 tracking-wider flex items-center justify-center gap-1.5">
-              <GraduationCap className="w-3.5 h-3.5 text-blue-400" /> Recommended Study Paths
+          <div className="space-y-3">
+            <span className="text-[9px] uppercase font-black text-indigo-400 tracking-widest flex items-center justify-center gap-1.5">
+              <GraduationCap className="w-3.5 h-3.5" /> Recommended Study Paths
             </span>
-            <div className="flex flex-wrap gap-2 justify-center">
+            <div className="flex flex-wrap gap-2.5 justify-center">
               {suggestionPrompts.map((p) => (
                 <button
                   key={p.text}
                   onClick={() => handleSendMessage(p.text)}
                   disabled={sending}
-                  className="px-3.5 py-2 bg-slate-950/40 hover:bg-slate-900/60 border border-slate-900 rounded-xl text-slate-300 hover:text-white text-[10px] font-semibold transition-all flex items-center gap-1.5 cursor-pointer glass-panel-hover"
+                  className="px-4 py-2 bg-slate-950/40 hover:bg-slate-900/60 border border-white/[0.05] rounded-xl text-slate-350 hover:text-white text-[10px] font-semibold transition-all duration-200 flex items-center gap-2 cursor-pointer glass-panel-hover"
                 >
-                  <span className="px-1 py-0.5 rounded bg-blue-600/20 text-[8px] font-black uppercase text-blue-400">
+                  <span className="px-1.5 py-0.5 rounded bg-indigo-500/10 border border-indigo-500/15 text-[8px] font-black uppercase text-indigo-400 tracking-wide leading-none">
                     {p.category}
                   </span>
                   <span>{p.text}</span>
@@ -273,22 +273,22 @@ export default function AIAdvisor() {
         )}
 
         {/* Text Input Panel */}
-        <form onSubmit={handleSubmit} className="flex gap-2">
+        <form onSubmit={handleSubmit} className="flex gap-3">
           {/* Voice Input Mic button */}
           <button 
             type="button"
             onClick={startListening}
             disabled={sending || isListening}
             className={`
-              p-3.5 rounded-xl border flex items-center justify-center transition-all flex-shrink-0
+              p-3.5 rounded-xl border flex items-center justify-center transition-all duration-200 flex-shrink-0
               ${isListening 
-                ? 'bg-rose-600/10 border-rose-500 text-rose-500 animate-pulse' 
-                : 'bg-slate-950/40 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                ? 'bg-rose-600/10 border-rose-500/40 text-rose-400 animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.1)]' 
+                : 'bg-slate-950/40 border-white/[0.06] text-slate-400 hover:text-slate-200 hover:border-slate-700'
               }
             `}
             title="Speak with Voice"
           >
-            <Mic className="w-5 h-5" />
+            <Mic className="w-4.5 h-4.5" />
           </button>
 
           {/* Text message box */}
@@ -298,16 +298,16 @@ export default function AIAdvisor() {
             value={inputMsg}
             onChange={(e) => setInputMsg(e.target.value)}
             disabled={sending || isListening}
-            className="flex-1 px-4 py-3 bg-slate-950/40 border border-slate-850 rounded-xl text-xs text-slate-200 focus:outline-none focus:border-blue-500/50 placeholder-slate-500 glass-input"
+            className="flex-1 px-4 py-3 bg-slate-950/40 border border-white/[0.06] rounded-xl text-xs text-slate-200 focus:outline-none focus:border-indigo-500/40 placeholder-slate-600 glass-input"
           />
 
           {/* Send text button */}
           <button 
             type="submit"
             disabled={sending || !inputMsg.trim() || isListening}
-            className="p-3.5 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white rounded-xl transition-all shadow-[0_0_15px_rgba(59,130,246,0.2)] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center flex-shrink-0"
+            className="p-3.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white rounded-xl transition-all duration-200 shadow-[0_4px_15px_-4px_rgba(99,102,241,0.2)] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center flex-shrink-0"
           >
-            {sending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+            {sending ? <Loader2 className="w-4.5 h-4.5 animate-spin" /> : <Send className="w-4.5 h-4.5" />}
           </button>
         </form>
       </div>
