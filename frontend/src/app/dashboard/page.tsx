@@ -18,7 +18,9 @@ import {
   Activity,
   X,
   CheckCircle,
-  ShieldCheck
+  ShieldCheck,
+  Download,
+  Upload
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -41,6 +43,8 @@ export default function Dashboard() {
     getDiagnosis,
     selectedMonth,
     setSelectedMonth,
+    exportBackupData,
+    importBackupData,
     loading, 
     error 
   } = useFinance();
@@ -76,6 +80,43 @@ export default function Dashboard() {
     } finally {
       setDiagnosing(false);
     }
+  };
+
+  const handleExportBackup = async () => {
+    try {
+      const backupStr = await exportBackupData();
+      const blob = new Blob([backupStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `finsight_backup_${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to export backup data.');
+    }
+  };
+
+  const handleImportBackup = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const jsonString = evt.target?.result as string;
+        await importBackupData(jsonString);
+        alert('Backup data successfully restored!');
+      } catch (err: any) {
+        console.error(err);
+        alert(`Failed to restore backup: ${err.message || 'Invalid format'}`);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
   };
 
   // Color mapping for categories in chart (Blue-Cyan-Slate family)
@@ -175,6 +216,28 @@ export default function Dashboard() {
             {diagnosing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Activity className="w-4 h-4 animate-pulse" />}
             <span>{diagnosing ? 'Running Audit...' : 'One-Click Diagnosis'}</span>
           </button>
+
+          {/* Export Backup */}
+          <button
+            onClick={handleExportBackup}
+            className="flex items-center gap-2 py-2 px-4 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200 text-xs font-bold transition-all"
+            title="Export full financial profile backup as JSON"
+          >
+            <Download className="w-4 h-4" />
+            <span>Export Backup</span>
+          </button>
+
+          {/* Import Backup */}
+          <label className="flex items-center gap-2 py-2 px-4 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200 text-xs font-bold transition-all cursor-pointer">
+            <Upload className="w-4 h-4" />
+            <span>Restore Backup</span>
+            <input
+              type="file"
+              accept=".json"
+              onChange={handleImportBackup}
+              className="hidden"
+            />
+          </label>
           
           {/* Month calendar filter */}
           <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 px-3.5 py-2 rounded-xl text-xs font-bold text-slate-300">

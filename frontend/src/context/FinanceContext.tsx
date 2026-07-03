@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useMemo } from 'react';
+import { StorageService, DBTransaction, DBStatement, DBGoal, DBChatMessage } from '../services/storage';
 
 export interface Transaction {
   id: number;
@@ -139,6 +140,8 @@ interface FinanceContextType {
   clearChat: () => Promise<void>;
   optimizeBudget: () => Promise<BudgetOptimizationResponse>;
   getDiagnosis: () => Promise<DiagnosisResponse>;
+  importBackupData: (jsonString: string) => Promise<void>;
+  exportBackupData: () => Promise<string>;
 }
 
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
@@ -192,10 +195,13 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
   const [error, setError] = useState<string | null>(null);
 
   const dateParams = useMemo(() => {
-    if (selectedMonth === 'All') return '';
+    if (selectedMonth === 'All') return { start_date: undefined, end_date: undefined };
     const [year, month] = selectedMonth.split('-');
     const daysInMonth = new Date(parseInt(year), parseInt(month), 0).getDate();
-    return `?start_date=${year}-${month}-01&end_date=${year}-${month}-${String(daysInMonth).padStart(2, '0')}`;
+    return {
+      start_date: `${year}-${month}-01`,
+      end_date: `${year}-${month}-${String(daysInMonth).padStart(2, '0')}`
+    };
   }, [selectedMonth]);
 
   const fetchFinanceData = async () => {
@@ -203,66 +209,134 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
       setLoading(true);
       setError(null);
 
-      // Wave 1: Fetch core dashboard data (fast SQLite reads, < 15ms)
-      const [resTxs, resOverview, resHealth, resAnomalies] = await Promise.all([
-        fetch(`${API_BASE}/transactions/${dateParams}`),
-        fetch(`${API_BASE}/insights/overview${dateParams}`),
-        fetch(`${API_BASE}/insights/health-score${dateParams}`),
-        fetch(`${API_BASE}/insights/anomalies${dateParams}`)
-      ]);
+      // 1. Fetch from Client-side IndexedDB
+      const allTxs = await StorageService.getAll<Transaction>('transactions');
+      const allStmts = await StorageService.getAll<Statement>('statements');
+      const allGoals = await StorageService.getAll<Goal>('goals');
+      const chatLogs = await StorageService.getAll<ChatMessage>('chat_history');
 
-      if (resTxs.ok) setTransactions(await resTxs.json());
-      if (resOverview.ok) setOverview(await resOverview.json());
-      if (resHealth.ok) setHealthScore(await resHealth.json());
-      if (resAnomalies.ok) setAnomalies(await resAnomalies.json());
+      setTransactions(allTxs);
+      setStatements(allStmts);
+      setGoals(allGoals);
+      setChatHistory(chatLogs);
 
-      // Wave 1 complete: Unblock the UI immediately
+      // 2. Perform Local Offline Calculation for immediate visual rendering
+      const filteredTxs = allTxs.filter(t => {
+        if (selectedMonth === 'All') return true;
+        const [year, month] = selectedMonth.split('-');
+        return t.date.startsWith(`${year}-${month}`);
+      });
+
+      const totalIncome = filteredTxs.filter(t => t.type === 'credit').reduce((acc, t) => acc + t.amount, 0);
+      const totalExpenses = filteredTxs.filter(t => t.type === 'debit').reduce((acc, t) => acc + t.amount, 0);
+      const totalSavings = totalIncome - totalExpenses;
+      const savingsRate = totalIncome > 0 ? (totalSavings / totalIncome) * 100 : 0;
+
+      setOverview({
+        total_income: totalIncome,
+        total_expenses: totalExpenses,
+        total_savings: totalSavings,
+        savings_rate: parseFloat(savingsRate.toFixed(2)),
+        cash_flow: totalIncome - totalExpenses
+      });
+
+      // Wave 1 Complete: Unblock UI
       setLoading(false);
+
+      // 3. Make POST calls to Stateless Backend for advanced AI & financial calculation
+      const payload = {
+        transactions: allTxs,
+        goals: allGoals,
+        start_date: dateParams.start_date,
+        end_date: dateParams.end_date
+      };
 
       // Wave 2: Fetch metadata & background page items asynchronously
       Promise.all([
-        fetch(`${API_BASE}/statement/`),
-        fetch(`${API_BASE}/goals/`),
-        fetch(`${API_BASE}/chat/history`),
-        fetch(`${API_BASE}/insights/forecast${dateParams}`),
-        fetch(`${API_BASE}/insights/goals-probability${dateParams}`)
-      ]).then(async ([resStmts, resGoals, resChat, resForecast, resGoalsProb]) => {
-        if (resStmts.ok) setStatements(await resStmts.json());
-        if (resGoals.ok) setGoals(await resGoals.json());
-        if (resChat.ok) setChatHistory(await resChat.json());
-        if (resForecast.ok) setForecast(await resForecast.json());
-        if (resGoalsProb.ok) setGoalsProbability(await resGoalsProb.json());
-      }).catch(err => console.error("Error fetching wave 2 (metadata):", err));
+        fetch(`${API_BASE}/insights/health-score`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).then(res => res.ok ? res.json() : null),
+        fetch(`${API_BASE}/insights/anomalies`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).then(res => res.ok ? res.json() : null),
+        fetch(`${API_BASE}/insights/forecast`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).then(res => res.ok ? res.json() : null),
+        fetch(`${API_BASE}/insights/goals-probability`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).then(res => res.ok ? res.json() : null)
+      ]).then(([health, anomaliesData, forecastData, goalsProb]) => {
+        if (health) setHealthScore(health);
+        if (anomaliesData) setAnomalies(anomaliesData);
+        if (forecastData) setForecast(forecastData);
+        if (goalsProb) setGoalsProbability(goalsProb);
+      }).catch(err => console.error("Error fetching wave 2 insights:", err));
 
-      // Wave 3: Fetch slow safety audit items in the background
+      // Wave 3: Fetch safety audit items
       Promise.all([
-        fetch(`${API_BASE}/insights/safety-index${dateParams}`),
-        fetch(`${API_BASE}/insights/leaks${dateParams}`),
-        fetch(`${API_BASE}/insights/survival${dateParams}`),
-        fetch(`${API_BASE}/insights/emergency${dateParams}`),
-        fetch(`${API_BASE}/insights/creep${dateParams}`),
-        fetch(`${API_BASE}/insights/debt-stress${dateParams}`),
-        fetch(`${API_BASE}/insights/upi-stats${dateParams}`)
-      ]).then(async ([resSafety, resLeaks, resSurvival, resEmergency, resCreep, resDebt, resUpi]) => {
-        if (resSafety.ok) setSafetyIndex(await resSafety.json());
-        if (resLeaks.ok) setMoneyLeaks(await resLeaks.json());
-        if (resSurvival.ok) setSalarySurvival(await resSurvival.json());
-        if (resEmergency.ok) setEmergencyFund(await resEmergency.json());
-        if (resCreep.ok) setLifestyleCreep(await resCreep.json());
-        if (resDebt.ok) setEmiStress(await resDebt.json());
-        if (resUpi.ok) setUpiStats(await resUpi.json());
-      }).catch(err => console.error("Error fetching wave 3 (safety audit):", err));
+        fetch(`${API_BASE}/insights/safety-index`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).then(res => res.ok ? res.json() : null),
+        fetch(`${API_BASE}/insights/leaks`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).then(res => res.ok ? res.json() : null),
+        fetch(`${API_BASE}/insights/survival`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).then(res => res.ok ? res.json() : null),
+        fetch(`${API_BASE}/insights/emergency`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).then(res => res.ok ? res.json() : null),
+        fetch(`${API_BASE}/insights/creep`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).then(res => res.ok ? res.json() : null),
+        fetch(`${API_BASE}/insights/debt-stress`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).then(res => res.ok ? res.json() : null),
+        fetch(`${API_BASE}/insights/upi-stats`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).then(res => res.ok ? res.json() : null)
+      ]).then(([safety, leaks, survival, emergency, creep, debt, upi]) => {
+        if (safety) setSafetyIndex(safety);
+        if (leaks) setMoneyLeaks(leaks);
+        if (survival) setSalarySurvival(survival);
+        if (emergency) setEmergencyFund(emergency);
+        if (creep) setLifestyleCreep(creep);
+        if (debt) setEmiStress(debt);
+        if (upi) setUpiStats(upi);
+      }).catch(err => console.error("Error fetching wave 3 safety audit:", err));
 
     } catch (e: any) {
-      console.error("Failed to load financial records from backend:", e);
-      setError("Unable to connect to backend server. Make sure the FastAPI backend is running.");
+      console.error("Failed to load records from IndexedDB:", e);
+      setError("Unable to initialize local database storage.");
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchFinanceData(); // eslint-disable-line react-hooks/exhaustive-deps
-  }, [selectedMonth]);
+    fetchFinanceData();
+  }, [selectedMonth]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const uploadStatement = async (file: File, password?: string): Promise<Statement> => {
     const formData = new FormData();
@@ -284,112 +358,152 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
       throw new Error(await res.text() || "Failed to upload and analyze statement");
     }
 
-    const data = await res.json();
-    await fetchFinanceData(); // Refresh all summaries
+    const data: Statement = await res.json();
+    
+    // Save to IndexedDB
+    const { transactions: extractedTxs, ...statementMeta } = data;
+    const addedStatement = await StorageService.add<DBStatement>('statements', statementMeta);
+    
+    if (extractedTxs && extractedTxs.length > 0) {
+      const txsToSave = extractedTxs.map(tx => ({
+        ...tx,
+        statement_id: addedStatement.id
+      }));
+      await StorageService.bulkAdd<DBTransaction>('transactions', txsToSave);
+    }
+
+    await fetchFinanceData(); // Refresh local overview & trigger backend analysis
     return data;
   };
 
   const deleteStatement = async (id: number) => {
-    const res = await fetch(`${API_BASE}/statement/${id}`, {
-      method: 'DELETE'
-    });
-    if (!res.ok) throw new Error("Failed to delete statement");
+    await StorageService.delete('statements', id);
+    // Delete all transactions linked to this statement ID
+    await StorageService.deleteByFilter('transactions', (tx) => tx.statement_id === id);
     await fetchFinanceData();
   };
 
   const addGoal = async (goal: Omit<Goal, 'id'>): Promise<Goal> => {
-    const res = await fetch(`${API_BASE}/goals/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(goal)
-    });
-    if (!res.ok) throw new Error("Failed to add savings goal");
-    const data = await res.json();
+    const result = await StorageService.add<DBGoal>('goals', goal);
+    const goalAdded: Goal = { ...result, id: result.id! };
     await fetchFinanceData();
-    return data;
+    return goalAdded;
   };
 
   const updateGoal = async (id: number, goal: Partial<Goal>): Promise<Goal> => {
-    const res = await fetch(`${API_BASE}/goals/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(goal)
-    });
-    if (!res.ok) throw new Error("Failed to update goal");
-    const data = await res.json();
+    const result = await StorageService.update<DBGoal>('goals', id, goal);
+    const goalUpdated: Goal = { ...result, id };
     await fetchFinanceData();
-    return data;
+    return goalUpdated;
   };
 
   const deleteGoal = async (id: number) => {
-    const res = await fetch(`${API_BASE}/goals/${id}`, {
-      method: 'DELETE'
-    });
-    if (!res.ok) throw new Error("Failed to delete goal");
+    await StorageService.delete('goals', id);
     await fetchFinanceData();
   };
 
   const updateTransaction = async (id: number, tx: Partial<Transaction>): Promise<Transaction> => {
-    const res = await fetch(`${API_BASE}/transactions/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(tx)
-    });
-    if (!res.ok) throw new Error("Failed to update transaction");
-    const data = await res.json();
+    const result = await StorageService.update<DBTransaction>('transactions', id, tx);
+    const txUpdated: Transaction = { ...result, id };
     await fetchFinanceData();
-    return data;
+    return txUpdated;
   };
 
   const deleteTransaction = async (id: number) => {
-    const res = await fetch(`${API_BASE}/transactions/${id}`, {
-      method: 'DELETE'
-    });
-    if (!res.ok) throw new Error("Failed to delete transaction");
+    await StorageService.delete('transactions', id);
     await fetchFinanceData();
   };
 
   const sendChatMessage = async (msg: string, useVoice: boolean = false, educationLevel: string = "intermediate"): Promise<string> => {
-    const tempUserMsg: ChatMessage = {
+    const userMsg: ChatMessage = {
       id: Date.now(),
       sender: 'user',
       message: msg,
       timestamp: new Date().toISOString()
     };
-    setChatHistory(prev => [...prev, tempUserMsg]);
+    
+    // Add user message to IndexedDB and update state
+    await StorageService.add<DBChatMessage>('chat_history', userMsg);
+    setChatHistory(prev => [...prev, userMsg]);
+
+    const chatLogs = await StorageService.getAll<ChatMessage>('chat_history');
+
+    const chatPayload = {
+      message: msg,
+      use_voice: useVoice,
+      education_level: educationLevel,
+      history: chatLogs,
+      transactions: transactions,
+      goals: goals
+    };
 
     const res = await fetch(`${API_BASE}/chat/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: msg, use_voice: useVoice, education_level: educationLevel })
+      body: JSON.stringify(chatPayload)
     });
 
     if (!res.ok) throw new Error("Failed to get response from assistant");
     const data = await res.json();
     
-    const resChat = await fetch(`${API_BASE}/chat/history`);
-    if (resChat.ok) {
-      setChatHistory(await resChat.json());
-    }
+    const aiMsg: ChatMessage = {
+      id: Date.now() + 1,
+      sender: 'ai',
+      message: data.reply,
+      timestamp: new Date().toISOString()
+    };
+
+    // Save AI reply to IndexedDB and update state
+    await StorageService.add<DBChatMessage>('chat_history', aiMsg);
+    setChatHistory(prev => [...prev, aiMsg]);
 
     return data.reply;
   };
 
   const clearChat = async () => {
-    await fetch(`${API_BASE}/chat/history`, { method: 'DELETE' });
+    await StorageService.clear('chat_history');
     setChatHistory([]);
   };
 
   const optimizeBudget = async (): Promise<BudgetOptimizationResponse> => {
-    const res = await fetch(`${API_BASE}/insights/optimize${dateParams}`);
+    const payload = {
+      transactions: transactions,
+      goals: goals,
+      start_date: dateParams.start_date,
+      end_date: dateParams.end_date
+    };
+    const res = await fetch(`${API_BASE}/insights/optimize`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
     if (!res.ok) throw new Error("Failed to generate AI budget optimization plan");
     return await res.json();
   };
 
   const getDiagnosis = async (): Promise<DiagnosisResponse> => {
-    const res = await fetch(`${API_BASE}/insights/diagnosis${dateParams}`);
+    const payload = {
+      transactions: transactions,
+      goals: goals,
+      start_date: dateParams.start_date,
+      end_date: dateParams.end_date
+    };
+    const res = await fetch(`${API_BASE}/insights/diagnosis`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
     if (!res.ok) throw new Error("Failed to generate financial audit diagnosis");
     return await res.json();
+  };
+
+  const importBackupData = async (jsonString: string) => {
+    await StorageService.importBackup(jsonString);
+    await fetchFinanceData();
+  };
+
+  const exportBackupData = async () => {
+    return await StorageService.exportBackup();
   };
 
   return (
@@ -428,7 +542,9 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
       sendChatMessage,
       clearChat,
       optimizeBudget,
-      getDiagnosis
+      getDiagnosis,
+      importBackupData,
+      exportBackupData
     }}>
       {children}
     </FinanceContext.Provider>

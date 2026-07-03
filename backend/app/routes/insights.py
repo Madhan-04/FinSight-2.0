@@ -7,9 +7,17 @@ from app.services.nvidia_service import NvidiaService
 
 router = APIRouter(prefix="/insights", tags=["Financial Insights"])
 
-@router.get("/overview", response_model=schemas.OverviewResponse)
-def get_overview(start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(database.get_db)):
-    txs = crud.get_transactions(db, limit=1000, start_date=start_date, end_date=end_date)
+def _filter_txs(req: schemas.AnalysisRequest) -> List[Any]:
+    txs = req.transactions
+    if req.start_date:
+        txs = [t for t in txs if t.date >= req.start_date]
+    if req.end_date:
+        txs = [t for t in txs if t.date <= req.end_date]
+    return txs
+
+@router.post("/overview", response_model=schemas.OverviewResponse)
+def get_overview(req: schemas.AnalysisRequest):
+    txs = _filter_txs(req)
     
     total_income = sum(t.amount for t in txs if t.type == "credit")
     total_expenses = sum(t.amount for t in txs if t.type == "debit")
@@ -26,32 +34,32 @@ def get_overview(start_date: Optional[str] = None, end_date: Optional[str] = Non
         cash_flow=cash_flow
     )
 
-@router.get("/health-score", response_model=schemas.HealthScoreResponse)
-def get_health_score(start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(database.get_db)):
-    txs = crud.get_transactions(db, limit=1000, start_date=start_date, end_date=end_date)
-    goals = crud.get_goals(db)
+@router.post("/health-score", response_model=schemas.HealthScoreResponse)
+def get_health_score(req: schemas.AnalysisRequest):
+    txs = _filter_txs(req)
+    goals = req.goals
     result = FinancialAnalyzer.calculate_health_score(txs, goals)
     return schemas.HealthScoreResponse(**result)
 
-@router.get("/subscriptions", response_model=List[schemas.SubscriptionItem])
-def get_subscriptions(start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(database.get_db)):
-    txs = crud.get_transactions(db, limit=1000, start_date=start_date, end_date=end_date)
+@router.post("/subscriptions", response_model=List[schemas.SubscriptionItem])
+def get_subscriptions(req: schemas.AnalysisRequest):
+    txs = _filter_txs(req)
     return FinancialAnalyzer.detect_subscriptions(txs)
 
-@router.get("/anomalies", response_model=List[schemas.AnomalyItem])
-def get_anomalies(start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(database.get_db)):
-    txs = crud.get_transactions(db, limit=1000, start_date=start_date, end_date=end_date)
+@router.post("/anomalies", response_model=List[schemas.AnomalyItem])
+def get_anomalies(req: schemas.AnalysisRequest):
+    txs = _filter_txs(req)
     return FinancialAnalyzer.detect_anomalies(txs)
 
-@router.get("/forecast", response_model=schemas.ForecastResponse)
-def get_forecast(start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(database.get_db)):
-    txs = crud.get_transactions(db, limit=1000, start_date=start_date, end_date=end_date)
+@router.post("/forecast", response_model=schemas.ForecastResponse)
+def get_forecast(req: schemas.AnalysisRequest):
+    txs = _filter_txs(req)
     result = FinancialAnalyzer.forecast_expenses(txs)
     return schemas.ForecastResponse(**result)
 
-@router.get("/optimize", response_model=schemas.BudgetOptimizationResponse)
-def get_budget_optimization(start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(database.get_db)):
-    txs = crud.get_transactions(db, limit=1000, start_date=start_date, end_date=end_date)
+@router.post("/optimize", response_model=schemas.BudgetOptimizationResponse)
+def get_budget_optimization(req: schemas.AnalysisRequest):
+    txs = _filter_txs(req)
     
     cats: Dict[str, float] = {}
     for t in txs:
@@ -72,10 +80,10 @@ def get_budget_optimization(start_date: Optional[str] = None, end_date: Optional
     result = NvidiaService.generate_budget_optimization(txs_summary, current_limits)
     return schemas.BudgetOptimizationResponse(**result)
 
-@router.get("/diagnosis", response_model=schemas.DiagnosisResponse)
-def get_diagnosis(start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(database.get_db)):
-    txs = crud.get_transactions(db, limit=1000, start_date=start_date, end_date=end_date)
-    goals = crud.get_goals(db)
+@router.post("/diagnosis", response_model=schemas.DiagnosisResponse)
+def get_diagnosis(req: schemas.AnalysisRequest):
+    txs = _filter_txs(req)
+    goals = req.goals
     
     overview = {
         "total_income": sum(t.amount for t in txs if t.type == "credit"),
@@ -101,15 +109,15 @@ def get_diagnosis(start_date: Optional[str] = None, end_date: Optional[str] = No
 
 # --- New Safety Audit Route Endpoints ---
 
-@router.get("/leaks", response_model=schemas.MoneyLeaksResponse)
-def get_money_leaks(start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(database.get_db)):
-    txs = crud.get_transactions(db, limit=1000, start_date=start_date, end_date=end_date)
+@router.post("/leaks", response_model=schemas.MoneyLeaksResponse)
+def get_money_leaks(req: schemas.AnalysisRequest):
+    txs = _filter_txs(req)
     result = FinancialAnalyzer.detect_money_leaks(txs)
     return schemas.MoneyLeaksResponse(**result)
 
-@router.get("/survival", response_model=schemas.SalarySurvivalResponse)
-def get_salary_survival(start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(database.get_db)):
-    txs = crud.get_transactions(db, limit=1000, start_date=start_date, end_date=end_date)
+@router.post("/survival", response_model=schemas.SalarySurvivalResponse)
+def get_salary_survival(req: schemas.AnalysisRequest):
+    txs = _filter_txs(req)
     result = FinancialAnalyzer.predict_salary_survival(txs)
     
     suggestions = NvidiaService.generate_survival_suggestions(
@@ -123,10 +131,10 @@ def get_salary_survival(start_date: Optional[str] = None, end_date: Optional[str
     result['suggestions'] = suggestions
     return schemas.SalarySurvivalResponse(**result)
 
-@router.get("/emergency", response_model=schemas.EmergencyFundResponse)
-def get_emergency_fund(start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(database.get_db)):
-    txs = crud.get_transactions(db, limit=1000, start_date=start_date, end_date=end_date)
-    goals = crud.get_goals(db)
+@router.post("/emergency", response_model=schemas.EmergencyFundResponse)
+def get_emergency_fund(req: schemas.AnalysisRequest):
+    txs = _filter_txs(req)
+    goals = req.goals
     result = FinancialAnalyzer.scan_emergency_fund(txs, goals)
     
     plans = NvidiaService.generate_emergency_plan(
@@ -139,9 +147,9 @@ def get_emergency_fund(start_date: Optional[str] = None, end_date: Optional[str]
     result['improvement_plans'] = plans
     return schemas.EmergencyFundResponse(**result)
 
-@router.get("/creep", response_model=schemas.LifestyleCreepResponse)
-def get_lifestyle_creep(start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(database.get_db)):
-    txs = crud.get_transactions(db, limit=1000, start_date=start_date, end_date=end_date)
+@router.post("/creep", response_model=schemas.LifestyleCreepResponse)
+def get_lifestyle_creep(req: schemas.AnalysisRequest):
+    txs = _filter_txs(req)
     result = FinancialAnalyzer.detect_lifestyle_creep(txs)
     
     recs = NvidiaService.generate_lifestyle_advice(
@@ -154,9 +162,9 @@ def get_lifestyle_creep(start_date: Optional[str] = None, end_date: Optional[str
     result['recommendations'] = recs
     return schemas.LifestyleCreepResponse(**result)
 
-@router.get("/debt-stress", response_model=schemas.EMIStressResponse)
-def get_emi_stress(start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(database.get_db)):
-    txs = crud.get_transactions(db, limit=1000, start_date=start_date, end_date=end_date)
+@router.post("/debt-stress", response_model=schemas.EMIStressResponse)
+def get_emi_stress(req: schemas.AnalysisRequest):
+    txs = _filter_txs(req)
     result = FinancialAnalyzer.analyze_emi_stress(txs)
     
     debt_plan = NvidiaService.generate_debt_plan(
@@ -168,9 +176,9 @@ def get_emi_stress(start_date: Optional[str] = None, end_date: Optional[str] = N
     result['suggestions'] = debt_plan
     return schemas.EMIStressResponse(**result)
 
-@router.get("/upi-stats", response_model=schemas.UPIDependencyResponse)
-def get_upi_stats(start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(database.get_db)):
-    txs = crud.get_transactions(db, limit=1000, start_date=start_date, end_date=end_date)
+@router.post("/upi-stats", response_model=schemas.UPIDependencyResponse)
+def get_upi_stats(req: schemas.AnalysisRequest):
+    txs = _filter_txs(req)
     result = FinancialAnalyzer.analyze_upi_dependency(txs)
     
     coaching = NvidiaService.generate_upi_advice(
@@ -184,16 +192,16 @@ def get_upi_stats(start_date: Optional[str] = None, end_date: Optional[str] = No
     result['suggestions'] = coaching
     return schemas.UPIDependencyResponse(**result)
 
-@router.get("/goals-probability", response_model=List[schemas.GoalProbabilityItem])
-def get_goals_probability(start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(database.get_db)):
-    txs = crud.get_transactions(db, limit=1000, start_date=start_date, end_date=end_date)
-    goals = crud.get_goals(db)
+@router.post("/goals-probability", response_model=List[schemas.GoalProbabilityItem])
+def get_goals_probability(req: schemas.AnalysisRequest):
+    txs = _filter_txs(req)
+    goals = req.goals
     return FinancialAnalyzer.calculate_goal_probabilities(txs, goals)
 
-@router.get("/safety-index", response_model=schemas.MasterSafetyResponse)
-def get_safety_index(start_date: Optional[str] = None, end_date: Optional[str] = None, db: Session = Depends(database.get_db)):
-    txs = crud.get_transactions(db, limit=1000, start_date=start_date, end_date=end_date)
-    goals = crud.get_goals(db)
+@router.post("/safety-index", response_model=schemas.MasterSafetyResponse)
+def get_safety_index(req: schemas.AnalysisRequest):
+    txs = _filter_txs(req)
+    goals = req.goals
     result = FinancialAnalyzer.calculate_master_safety_score(txs, goals)
     return schemas.MasterSafetyResponse(**result)
 

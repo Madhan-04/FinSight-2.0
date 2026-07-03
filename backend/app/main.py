@@ -4,11 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 
-from app import models, database, config
+from app import config
 from app.routes import auth, transactions, statement, insights, goals, chat
-
-# Create tables
-models.Base.metadata.create_all(bind=database.engine)
 
 app = FastAPI(
     title=config.settings.PROJECT_NAME,

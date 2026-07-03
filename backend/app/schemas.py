@@ -29,7 +29,7 @@ class TransactionUpdate(BaseModel):
 class Transaction(TransactionBase):
     id: int
     statement_id: Optional[int] = None
-    created_at: datetime
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -48,7 +48,7 @@ class StatementCreate(StatementBase):
 
 class Statement(StatementBase):
     id: int
-    uploaded_at: datetime
+    uploaded_at: Optional[datetime] = None
     transactions: List[Transaction] = []
 
     class Config:
@@ -74,7 +74,7 @@ class GoalUpdate(BaseModel):
 
 class Goal(GoalBase):
     id: int
-    created_at: datetime
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -89,7 +89,7 @@ class ChatMessageCreate(ChatMessageBase):
 
 class ChatMessage(ChatMessageBase):
     id: int
-    timestamp: datetime
+    timestamp: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -98,10 +98,20 @@ class ChatRequest(BaseModel):
     message: str
     use_voice: bool = False
     education_level: Optional[str] = "intermediate"
+    history: List[ChatMessage] = []
+    transactions: List[Transaction] = []
+    goals: List[Goal] = []
 
 class ChatResponse(BaseModel):
     reply: str
     audio_data: Optional[str] = None  # Base64 TTS audio if requested
+
+class AnalysisRequest(BaseModel):
+    transactions: List[Transaction] = []
+    goals: List[Goal] = []
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+
 
 # --- Analytics & Dashboard Schemas ---
 class OverviewResponse(BaseModel):

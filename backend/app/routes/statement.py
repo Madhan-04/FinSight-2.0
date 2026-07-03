@@ -8,11 +8,12 @@ import logging
 logger = logging.getLogger("uvicorn")
 router = APIRouter(prefix="/statement", tags=["Bank Statements"])
 
+import datetime
+
 @router.post("/upload", response_model=schemas.Statement)
 async def upload_statement(
     file: UploadFile = File(...), 
-    password: Optional[str] = Form(None), 
-    db: Session = Depends(database.get_db)
+    password: Optional[str] = Form(None)
 ):
     try:
         # Read file contents
@@ -21,7 +22,7 @@ async def upload_statement(
         content_type = file.content_type or "application/pdf"
         
         logger.info(f"Parsing statement file: {filename} ({content_type}, size={len(contents)} bytes)")
-
+ 
         # Check PDF password requirement
         if filename.lower().endswith('.pdf'):
             import io
@@ -55,7 +56,7 @@ async def upload_statement(
                 raise
             except Exception as e:
                 logger.error(f"Error checking PDF encryption: {str(e)}")
-
+ 
         # Call NVIDIA NIM parser to extract and structure
         parse_result = NvidiaService.parse_statement(contents, filename, content_type, password=password)
         
@@ -68,21 +69,14 @@ async def upload_statement(
         total_debits = sum(t.get("amount", 0.0) for t in parsed_txs if t.get("type") == "debit")
         total_credits = sum(t.get("amount", 0.0) for t in parsed_txs if t.get("type") == "credit")
         
-        # Create Statement row
-        stmt_in = schemas.StatementCreate(
-            filename=filename,
-            bank_name=bank_name,
-            period=period,
-            total_transactions=total_transactions,
-            total_debits=total_debits,
-            total_credits=total_credits
-        )
-        db_statement = crud.create_statement(db=db, statement=stmt_in)
+        # Create unique ID for statement (temporary client-side ID)
+        statement_id = int(datetime.datetime.now().timestamp() * 1000)
         
-        # Create Transaction rows
-        tx_models = []
-        for tx in parsed_txs:
-            tx_in = schemas.TransactionCreate(
+        # Format transaction list
+        tx_list = []
+        for idx, tx in enumerate(parsed_txs):
+            tx_list.append(schemas.Transaction(
+                id=statement_id + idx,
                 date=tx.get("date", "2026-06-01"),
                 raw_description=tx.get("raw_description", "Unknown"),
                 merchant=tx.get("merchant", "Unknown Merchant"),
@@ -91,30 +85,35 @@ async def upload_statement(
                 category=tx.get("category", "Other Expenses"),
                 payment_method=tx.get("payment_method", "Other"),
                 is_recurring=tx.get("is_recurring", False),
-                statement_id=db_statement.id
-            )
-            tx_models.append(tx_in)
+                statement_id=statement_id,
+                created_at=datetime.datetime.now()
+            ))
             
-        crud.create_bulk_transactions(db=db, transactions=tx_models)
+        statement_response = schemas.Statement(
+            id=statement_id,
+            filename=filename,
+            bank_name=bank_name,
+            period=period,
+            total_transactions=total_transactions,
+            total_debits=total_debits,
+            total_credits=total_credits,
+            uploaded_at=datetime.datetime.now(),
+            transactions=tx_list
+        )
         
-        # Refresh and return
-        db.refresh(db_statement)
-        return db_statement
-
+        return statement_response
+ 
     except Exception as e:
         logger.error(f"Failed to process uploaded statement: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error parsing statement: {str(e)}"
         )
-
+ 
 @router.get("/", response_model=List[schemas.Statement])
-def list_statements(skip: int = 0, limit: int = 50, db: Session = Depends(database.get_db)):
-    return crud.get_statements(db=db, skip=skip, limit=limit)
-
+def list_statements():
+    return []
+ 
 @router.delete("/{statement_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_statement(statement_id: int, db: Session = Depends(database.get_db)):
-    success = crud.delete_statement(db=db, statement_id=statement_id)
-    if not success:
-        raise HTTPException(status_code=404, detail="Statement not found")
+def delete_statement(statement_id: int):
     return None

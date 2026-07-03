@@ -8,24 +8,24 @@ from app.services.analyzer import FinancialAnalyzer
 router = APIRouter(prefix="/chat", tags=["AI Advisor Chat"])
 
 @router.get("/history", response_model=List[schemas.ChatMessage])
-def get_history(db: Session = Depends(database.get_db)):
-    return crud.get_chat_history(db, limit=50)
+def get_history():
+    # Stateless API: History is stored in the browser's IndexedDB
+    return []
 
 @router.post("/", response_model=schemas.ChatResponse)
-def chat_with_advisor(req: schemas.ChatRequest, db: Session = Depends(database.get_db)):
+def chat_with_advisor(req: schemas.ChatRequest):
     try:
         user_msg = req.message
         
-        # 1. Fetch Chat History
-        history_msgs = crud.get_chat_history(db, limit=15)
+        # 1. Format Chat History
         history_formatted = []
-        for h in history_msgs:
+        for h in req.history:
             role = "user" if h.sender == "user" else "model"
             history_formatted.append({"role": role, "content": h.message})
             
-        # 2. Fetch User Financial Context
-        txs = crud.get_transactions(db, limit=100)
-        goals = crud.get_goals(db)
+        # 2. Extract User Financial Context from payload
+        txs = req.transactions
+        goals = req.goals
         
         overview = {
             "total_income": sum(t.amount for t in txs if t.type == "credit"),
@@ -46,14 +46,8 @@ def chat_with_advisor(req: schemas.ChatRequest, db: Session = Depends(database.g
             "transactions": [{"date": t.date, "merchant": t.merchant, "amount": t.amount, "type": t.type, "category": t.category} for t in txs[:10]]
         }
         
-        # 3. Call NVIDIA
+        # 3. Call NVIDIA Service
         reply = NvidiaService.generate_chat_response(user_msg, history_formatted, context, req.education_level)
-        
-        # 4. Save to Database
-        # Save user message
-        crud.create_chat_message(db, schemas.ChatMessageCreate(sender="user", message=user_msg))
-        # Save AI reply
-        crud.create_chat_message(db, schemas.ChatMessageCreate(sender="ai", message=reply))
         
         return schemas.ChatResponse(reply=reply, audio_data=None)
 
@@ -61,6 +55,5 @@ def chat_with_advisor(req: schemas.ChatRequest, db: Session = Depends(database.g
         raise HTTPException(status_code=500, detail=f"Failed to generate advisor response: {str(e)}")
 
 @router.delete("/history")
-def clear_history(db: Session = Depends(database.get_db)):
-    crud.clear_chat_history(db)
+def clear_history():
     return {"detail": "Chat history cleared successfully"}
