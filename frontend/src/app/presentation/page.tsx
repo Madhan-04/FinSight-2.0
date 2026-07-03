@@ -99,7 +99,7 @@ export default function PresentationMode() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans pb-20 relative overflow-hidden">
+    <div className="min-h-screen text-slate-100 font-sans pb-20 relative overflow-hidden">
       {/* Background Gradients */}
       <div className="absolute top-0 left-0 w-full h-full bg-radial-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops)) pointer-events-none opacity-20" />
       <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-blue-500/10 rounded-full blur-[100px] pointer-events-none" />

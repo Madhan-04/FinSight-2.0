@@ -21,7 +21,7 @@ export default function RootLayout({
 
   return (
     <html lang="en" className="dark">
-      <body className={`${inter.className} antialiased text-slate-100 min-h-screen bg-slate-950 flex`}>
+      <body className={`${inter.className} antialiased text-slate-100 min-h-screen flex`}>
         <FinanceProvider>
           {isFullScreenPage ? (
             <div className="w-full min-h-screen">
