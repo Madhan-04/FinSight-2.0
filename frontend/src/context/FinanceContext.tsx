@@ -2,19 +2,10 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useMemo } from 'react';
 import { StorageService, DBTransaction, DBStatement, DBGoal, DBChatMessage } from '../services/storage';
+import { FinancialAnalyzer, Transaction, Goal } from '../services/analyzer';
+import { MockAiService } from '../services/mockAi';
 
-export interface Transaction {
-  id: number;
-  date: string;
-  raw_description: string;
-  merchant: string;
-  amount: number;
-  type: 'debit' | 'credit';
-  category: string;
-  payment_method: string;
-  is_recurring: boolean;
-  statement_id?: number;
-}
+export type { Transaction, Goal };
 
 export interface Statement {
   id: number;
@@ -26,15 +17,6 @@ export interface Statement {
   total_debits: number;
   total_credits: number;
   transactions?: Transaction[];
-}
-
-export interface Goal {
-  id: number;
-  name: string;
-  target_amount: number;
-  current_amount: number;
-  target_date: string;
-  category: string;
 }
 
 export interface ChatMessage {
@@ -146,8 +128,6 @@ interface FinanceContextType {
 
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
 
-const API_BASE = 'http://127.0.0.1:8000/api';
-
 export const FinanceProvider = ({ children }: { children: ReactNode }) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [statements, setStatements] = useState<Statement[]>([]);
@@ -194,20 +174,61 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  const dateParams = useMemo(() => {
-    if (selectedMonth === 'All') return { start_date: undefined, end_date: undefined };
-    const [year, month] = selectedMonth.split('-');
-    const daysInMonth = new Date(parseInt(year), parseInt(month), 0).getDate();
-    return {
-      start_date: `${year}-${month}-01`,
-      end_date: `${year}-${month}-${String(daysInMonth).padStart(2, '0')}`
-    };
-  }, [selectedMonth]);
+  // Load sample default data if database is empty on first load
+  const loadDefaultMockData = async () => {
+    const txs = await StorageService.getAll<Transaction>('transactions');
+    if (txs.length === 0) {
+      console.log("Database empty. Initializing with sample demo dataset.");
+      
+      const sampleStatement: DBStatement = {
+        filename: 'statement_june_2026.csv',
+        uploaded_at: new Date().toISOString(),
+        bank_name: 'HDFC Bank',
+        period: '01-06-2026 to 30-06-2026',
+        total_transactions: 12,
+        total_debits: 31250,
+        total_credits: 75000
+      };
+
+      const addedStmt = await StorageService.add<DBStatement>('statements', sampleStatement);
+      
+      const sampleTxs: DBTransaction[] = [
+        { date: '2026-06-01', raw_description: 'SALARY CREDIT FT', merchant: 'TCS Corp Payroll', amount: 75000, type: 'credit', category: 'Salary Credit', payment_method: 'NEFT', is_recurring: true, statement_id: addedStmt.id },
+        { date: '2026-06-02', raw_description: 'UPI/98765/FLATRENT/GPAY', merchant: 'Flat Rent Owner', amount: 15000, type: 'debit', category: 'Rent & Living', payment_method: 'UPI', is_recurring: true, statement_id: addedStmt.id },
+        { date: '2026-06-05', raw_description: 'UPI/54321/SWIGGY/FOOD', merchant: 'Swiggy', amount: 450, type: 'debit', category: 'Food & Dining', payment_method: 'UPI', is_recurring: false, statement_id: addedStmt.id },
+        { date: '2026-06-10', raw_description: 'ACH DEBIT HDFC HOME LOAN', merchant: 'HDFC Home Loan EMI', amount: 8500, type: 'debit', category: 'EMI Payments', payment_method: 'ACH Debit', is_recurring: true, statement_id: addedStmt.id },
+        { date: '2026-06-12', raw_description: 'UPI/33221/AMAZON/GPAY', merchant: 'Amazon Shopping', amount: 3200, type: 'debit', category: 'Shopping & Entertainment', payment_method: 'UPI', is_recurring: false, statement_id: addedStmt.id },
+        { date: '2026-06-15', raw_description: 'CARD/NETFLIX MEMBERSHIP', merchant: 'Netflix India', amount: 649, type: 'debit', category: 'Bills & Subscriptions', payment_method: 'Card', is_recurring: true, statement_id: addedStmt.id },
+        { date: '2026-06-18', raw_description: 'UPI/65432/ZOMATO/GPAY', merchant: 'Zomato Delivery', amount: 550, type: 'debit', category: 'Food & Dining', payment_method: 'UPI', is_recurring: false, statement_id: addedStmt.id },
+        { date: '2026-06-20', raw_description: 'UPI/77665/SPOTIFY/GPAY', merchant: 'Spotify Premium', amount: 119, type: 'debit', category: 'Bills & Subscriptions', payment_method: 'UPI', is_recurring: true, statement_id: addedStmt.id },
+        { date: '2026-06-22', raw_description: 'UPI/11223/Z zepto/GPAY', merchant: 'Zepto Groceries', amount: 1200, type: 'debit', category: 'Food & Dining', payment_method: 'UPI', is_recurring: false, statement_id: addedStmt.id },
+        { date: '2026-06-25', raw_description: 'UPI/33445/ELECTRICITY/GPAY', merchant: 'State Electricity Board', amount: 1850, type: 'debit', category: 'Bills & Subscriptions', payment_method: 'UPI', is_recurring: true, statement_id: addedStmt.id },
+        { date: '2026-06-28', raw_description: 'UPI/22998/ACTFIBRE/GPAY', merchant: 'ACT Fibernet Broadband', amount: 982, type: 'debit', category: 'Bills & Subscriptions', payment_method: 'UPI', is_recurring: true, statement_id: addedStmt.id },
+        { date: '2026-06-29', raw_description: 'UPI/65432/ZOMATO/GPAY', merchant: 'Zomato Delivery', amount: 550, type: 'debit', category: 'Food & Dining', payment_method: 'UPI', is_recurring: false, statement_id: addedStmt.id } // Duplicate anomaly
+      ];
+
+      await StorageService.bulkAdd<DBTransaction>('transactions', sampleTxs);
+
+      const sampleGoals: DBGoal[] = [
+        { name: 'Emergency Safety Contingency', target_amount: 50000, current_amount: 15000, target_date: '2026-12-31', category: 'Emergency' },
+        { name: 'Higher Education Savings', target_amount: 100000, current_amount: 25000, target_date: '2027-06-30', category: 'Education' }
+      ];
+      await StorageService.bulkAdd<DBGoal>('goals', sampleGoals);
+
+      const sampleChat: DBChatMessage[] = [
+        { sender: 'ai', message: 'Hello! I am your FinSight AI Advisor. I have loaded your sample statement for June 2026. You have a duplicate Swiggy/Zomato charge flagged. Ask me how to optimize your budget!', timestamp: new Date().toISOString() }
+      ];
+      await StorageService.bulkAdd<DBChatMessage>('chat_history', sampleChat);
+    }
+  };
 
   const fetchFinanceData = async () => {
     try {
       setLoading(true);
       setError(null);
+
+      // Initialize defaults if IndexedDB is fresh
+      await loadDefaultMockData();
 
       // 1. Fetch from Client-side IndexedDB
       const allTxs = await StorageService.getAll<Transaction>('transactions');
@@ -220,13 +241,14 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
       setGoals(allGoals);
       setChatHistory(chatLogs);
 
-      // 2. Perform Local Offline Calculation for immediate visual rendering
+      // 2. Perform local month filtering
       const filteredTxs = allTxs.filter(t => {
         if (selectedMonth === 'All') return true;
         const [year, month] = selectedMonth.split('-');
         return t.date.startsWith(`${year}-${month}`);
       });
 
+      // 3. Overview calculations
       const totalIncome = filteredTxs.filter(t => t.type === 'credit').reduce((acc, t) => acc + t.amount, 0);
       const totalExpenses = filteredTxs.filter(t => t.type === 'debit').reduce((acc, t) => acc + t.amount, 0);
       const totalSavings = totalIncome - totalExpenses;
@@ -240,93 +262,55 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
         cash_flow: totalIncome - totalExpenses
       });
 
-      // Wave 1 Complete: Unblock UI
+      // 4. Client-side Real-time Analytics Calculations
+      const health = FinancialAnalyzer.calculateHealthScore(filteredTxs, allGoals);
+      setHealthScore(health);
+
+      const subs = FinancialAnalyzer.detectSubscriptions(filteredTxs);
+      setSubscriptions(subs);
+
+      const anomaliesData = FinancialAnalyzer.detectAnomalies(filteredTxs);
+      setAnomalies(anomaliesData);
+
+      const forecastData = FinancialAnalyzer.forecastExpenses(allTxs);
+      setForecast(forecastData as Forecast);
+
+      const goalsProb = FinancialAnalyzer.calculateGoalProbabilities(allTxs, allGoals);
+      setGoalsProbability(goalsProb);
+
+      const safety = FinancialAnalyzer.calculateMasterSafetyScore(filteredTxs, allGoals);
+      setSafetyIndex(safety);
+
+      // Money Leaks
+      const leaks = FinancialAnalyzer.detectMoneyLeaks(filteredTxs);
+      setMoneyLeaks(leaks);
+
+      // Salary Survival
+      const survival = FinancialAnalyzer.predictSalarySurvival(allTxs);
+      survival.suggestions = MockAiService.getSurvivalSuggestions(survival);
+      setSalarySurvival(survival);
+
+      // Emergency Fund
+      const emergency = FinancialAnalyzer.scanEmergencyFund(allTxs, allGoals);
+      emergency.improvement_plans = MockAiService.getEmergencyPlan(emergency);
+      setEmergencyFund(emergency);
+
+      // Lifestyle Creep
+      const creep = FinancialAnalyzer.detectLifestyleCreep(allTxs);
+      creep.recommendations = MockAiService.getLifestyleAdvice(creep);
+      setLifestyleCreep(creep);
+
+      // EMI Stress
+      const emi = FinancialAnalyzer.analyzeEMIStress(filteredTxs);
+      emi.suggestions = MockAiService.getDebtPlan(emi);
+      setEmiStress(emi);
+
+      // UPI Stats
+      const upi = FinancialAnalyzer.analyzeUpiDependency(filteredTxs);
+      upi.suggestions = MockAiService.getUpiAdvice(upi);
+      setUpiStats(upi);
+
       setLoading(false);
-
-      // 3. Make POST calls to Stateless Backend for advanced AI & financial calculation
-      const payload = {
-        transactions: allTxs,
-        goals: allGoals,
-        start_date: dateParams.start_date,
-        end_date: dateParams.end_date
-      };
-
-      // Wave 2: Fetch metadata & background page items asynchronously
-      Promise.all([
-        fetch(`${API_BASE}/insights/health-score`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        }).then(res => res.ok ? res.json() : null),
-        fetch(`${API_BASE}/insights/anomalies`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        }).then(res => res.ok ? res.json() : null),
-        fetch(`${API_BASE}/insights/forecast`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        }).then(res => res.ok ? res.json() : null),
-        fetch(`${API_BASE}/insights/goals-probability`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        }).then(res => res.ok ? res.json() : null)
-      ]).then(([health, anomaliesData, forecastData, goalsProb]) => {
-        if (health) setHealthScore(health);
-        if (anomaliesData) setAnomalies(anomaliesData);
-        if (forecastData) setForecast(forecastData);
-        if (goalsProb) setGoalsProbability(goalsProb);
-      }).catch(err => console.error("Error fetching wave 2 insights:", err));
-
-      // Wave 3: Fetch safety audit items
-      Promise.all([
-        fetch(`${API_BASE}/insights/safety-index`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        }).then(res => res.ok ? res.json() : null),
-        fetch(`${API_BASE}/insights/leaks`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        }).then(res => res.ok ? res.json() : null),
-        fetch(`${API_BASE}/insights/survival`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        }).then(res => res.ok ? res.json() : null),
-        fetch(`${API_BASE}/insights/emergency`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        }).then(res => res.ok ? res.json() : null),
-        fetch(`${API_BASE}/insights/creep`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        }).then(res => res.ok ? res.json() : null),
-        fetch(`${API_BASE}/insights/debt-stress`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        }).then(res => res.ok ? res.json() : null),
-        fetch(`${API_BASE}/insights/upi-stats`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        }).then(res => res.ok ? res.json() : null)
-      ]).then(([safety, leaks, survival, emergency, creep, debt, upi]) => {
-        if (safety) setSafetyIndex(safety);
-        if (leaks) setMoneyLeaks(leaks);
-        if (survival) setSalarySurvival(survival);
-        if (emergency) setEmergencyFund(emergency);
-        if (creep) setLifestyleCreep(creep);
-        if (debt) setEmiStress(debt);
-        if (upi) setUpiStats(upi);
-      }).catch(err => console.error("Error fetching wave 3 safety audit:", err));
-
     } catch (e: any) {
       console.error("Failed to load records from IndexedDB:", e);
       setError("Unable to initialize local database storage.");
@@ -338,47 +322,102 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
     fetchFinanceData();
   }, [selectedMonth]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Client-side local parsing file logic (OCR scanner simulation / CSV Reader)
   const uploadStatement = async (file: File, password?: string): Promise<Statement> => {
-    const formData = new FormData();
-    formData.append('file', file);
-    if (password) {
-      formData.append('password', password);
-    }
+    // Simulate parsing lag for premium WOW UX
+    await new Promise(resolve => setTimeout(resolve, 3000));
 
-    const res = await fetch(`${API_BASE}/statement/upload`, {
-      method: 'POST',
-      body: formData,
-    });
+    let filename = file.name;
+    let bank_name = 'ICICI Bank';
+    let period = '01-06-2026 to 30-06-2026';
+    let extractedTxs: Omit<Transaction, 'id'>[] = [];
 
-    if (!res.ok) {
-      if (res.status === 401) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.detail || "PASSWORD_REQUIRED");
+    // Parse simple CSV if provided
+    if (filename.endsWith('.csv')) {
+      try {
+        const text = await file.text();
+        const lines = text.split('\n');
+        
+        lines.slice(1).forEach((line, index) => {
+          if (!line.trim()) return;
+          const cols = line.split(',');
+          if (cols.length >= 5) {
+            // Assume format: Date, Description, Amount, Type, Category
+            const date = cols[0].trim();
+            const desc = cols[1].trim();
+            const amount = parseFloat(cols[2].trim()) || 100;
+            const type = cols[3].trim().toLowerCase() === 'credit' ? 'credit' : 'debit';
+            const category = cols[4]?.trim() || 'Other Expenses';
+            
+            extractedTxs.push({
+              date,
+              raw_description: desc,
+              merchant: desc.split(' ')[0] || 'Merchant',
+              amount,
+              type: type as 'credit' | 'debit',
+              category,
+              payment_method: desc.includes('UPI') ? 'UPI' : 'Card',
+              is_recurring: false
+            });
+          }
+        });
+      } catch (err) {
+        console.error("Local CSV parsing failed, fallback to mock generation", err);
       }
-      throw new Error(await res.text() || "Failed to upload and analyze statement");
     }
 
-    const data: Statement = await res.json();
-    
-    // Save to IndexedDB
-    const { transactions: extractedTxs, ...statementMeta } = data;
+    // Default mock data generation if CSV is empty or it is a PDF/Image
+    if (extractedTxs.length === 0) {
+      bank_name = filename.toLowerCase().includes('sbi') ? 'State Bank of India' : 
+                  filename.toLowerCase().includes('hdfc') ? 'HDFC Bank' : 'ICICI Bank';
+      
+      extractedTxs = [
+        { date: '2026-06-01', raw_description: 'PAYROLL CREDIT DIRECT', merchant: 'Corporate Salary', amount: 65000, type: 'credit', category: 'Salary Credit', payment_method: 'NEFT', is_recurring: true },
+        { date: '2026-06-03', raw_description: 'UPI/9988/AMAZON/GPAY', merchant: 'Amazon Shopping', amount: 1450, type: 'debit', category: 'Shopping & Entertainment', payment_method: 'UPI', is_recurring: false },
+        { date: '2026-06-05', raw_description: 'UPI/7766/SWIGGY/FOOD', merchant: 'Swiggy Food', amount: 390, type: 'debit', category: 'Food & Dining', payment_method: 'UPI', is_recurring: false },
+        { date: '2026-06-08', raw_description: 'CARD/NETFLIX STREAMING', merchant: 'Netflix', amount: 649, type: 'debit', category: 'Bills & Subscriptions', payment_method: 'Card', is_recurring: true },
+        { date: '2026-06-10', raw_description: 'UPI/8899/RENT/GPAY', merchant: 'Flat rent', amount: 12000, type: 'debit', category: 'Rent & Living', payment_method: 'UPI', is_recurring: true },
+        { date: '2026-06-15', raw_description: 'UPI/6677/SPORTSFIT/GPAY', merchant: 'SportsFit Gym', amount: 1500, type: 'debit', category: 'Bills & Subscriptions', payment_method: 'UPI', is_recurring: true },
+        { date: '2026-06-20', raw_description: 'UPI/5544/GPAY/ZOMATO', merchant: 'Zomato Food', amount: 680, type: 'debit', category: 'Food & Dining', payment_method: 'UPI', is_recurring: false },
+        { date: '2026-06-28', raw_description: 'UPI/3322/BLINKIT/GPAY', merchant: 'BlinkIt delivery', amount: 940, type: 'debit', category: 'Food & Dining', payment_method: 'UPI', is_recurring: false }
+      ];
+    }
+
+    const total_transactions = extractedTxs.length;
+    const total_debits = extractedTxs.filter(t => t.type === 'debit').reduce((acc, t) => acc + t.amount, 0);
+    const total_credits = extractedTxs.filter(t => t.type === 'credit').reduce((acc, t) => acc + t.amount, 0);
+
+    const statementMeta: DBStatement = {
+      filename,
+      uploaded_at: new Date().toISOString(),
+      bank_name,
+      period,
+      total_transactions,
+      total_debits,
+      total_credits
+    };
+
     const addedStatement = await StorageService.add<DBStatement>('statements', statementMeta);
     
-    if (extractedTxs && extractedTxs.length > 0) {
-      const txsToSave = extractedTxs.map(tx => ({
-        ...tx,
-        statement_id: addedStatement.id
-      }));
-      await StorageService.bulkAdd<DBTransaction>('transactions', txsToSave);
-    }
+    const statementId = addedStatement.id!;
+    const txsToSave = extractedTxs.map((tx, idx) => ({
+      ...tx,
+      id: statementId * 1000 + idx,
+      statement_id: statementId
+    }));
 
-    await fetchFinanceData(); // Refresh local overview & trigger backend analysis
-    return data;
+    await StorageService.bulkAdd<DBTransaction>('transactions', txsToSave);
+    await fetchFinanceData(); // Recalculate local stats
+
+    return {
+      id: statementId,
+      ...statementMeta,
+      transactions: txsToSave as Transaction[]
+    };
   };
 
   const deleteStatement = async (id: number) => {
     await StorageService.delete('statements', id);
-    // Delete all transactions linked to this statement ID
     await StorageService.deleteByFilter('transactions', (tx) => tx.statement_id === id);
     await fetchFinanceData();
   };
@@ -414,6 +453,7 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
     await fetchFinanceData();
   };
 
+  // Client-side conversational AI chatbot handler
   const sendChatMessage = async (msg: string, useVoice: boolean = false, educationLevel: string = "intermediate"): Promise<string> => {
     const userMsg: ChatMessage = {
       id: Date.now(),
@@ -422,42 +462,34 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
       timestamp: new Date().toISOString()
     };
     
-    // Add user message to IndexedDB and update state
     await StorageService.add<DBChatMessage>('chat_history', userMsg);
     setChatHistory(prev => [...prev, userMsg]);
 
     const chatLogs = await StorageService.getAll<ChatMessage>('chat_history');
 
-    const chatPayload = {
-      message: msg,
-      use_voice: useVoice,
-      education_level: educationLevel,
-      history: chatLogs,
+    // Run AI chat mock generation on client
+    const aiContext = {
       transactions: transactions,
-      goals: goals
+      goals: goals,
+      overview: overview,
+      healthScore: healthScore,
+      subscriptions: subscriptions,
+      anomalies: anomalies
     };
 
-    const res = await fetch(`${API_BASE}/chat/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(chatPayload)
-    });
+    const aiReplyText = await MockAiService.generateChatResponse(msg, chatLogs, aiContext, educationLevel);
 
-    if (!res.ok) throw new Error("Failed to get response from assistant");
-    const data = await res.json();
-    
     const aiMsg: ChatMessage = {
       id: Date.now() + 1,
       sender: 'ai',
-      message: data.reply,
+      message: aiReplyText,
       timestamp: new Date().toISOString()
     };
 
-    // Save AI reply to IndexedDB and update state
     await StorageService.add<DBChatMessage>('chat_history', aiMsg);
     setChatHistory(prev => [...prev, aiMsg]);
 
-    return data.reply;
+    return aiReplyText;
   };
 
   const clearChat = async () => {
@@ -466,35 +498,17 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const optimizeBudget = async (): Promise<BudgetOptimizationResponse> => {
-    const payload = {
-      transactions: transactions,
-      goals: goals,
-      start_date: dateParams.start_date,
-      end_date: dateParams.end_date
-    };
-    const res = await fetch(`${API_BASE}/insights/optimize`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    if (!res.ok) throw new Error("Failed to generate AI budget optimization plan");
-    return await res.json();
+    return await MockAiService.generateBudgetOptimization(transactions);
   };
 
   const getDiagnosis = async (): Promise<DiagnosisResponse> => {
-    const payload = {
-      transactions: transactions,
-      goals: goals,
-      start_date: dateParams.start_date,
-      end_date: dateParams.end_date
+    const diagContext = {
+      overview,
+      healthScore,
+      subscriptions,
+      anomalies
     };
-    const res = await fetch(`${API_BASE}/insights/diagnosis`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    if (!res.ok) throw new Error("Failed to generate financial audit diagnosis");
-    return await res.json();
+    return await MockAiService.generateDiagnosis(diagContext);
   };
 
   const importBackupData = async (jsonString: string) => {

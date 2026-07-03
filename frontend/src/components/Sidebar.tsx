@@ -11,7 +11,8 @@ import {
   MessageSquare,
   Sparkles,
   Zap,
-  ShieldCheck
+  ShieldCheck,
+  Heart
 } from 'lucide-react';
 
 export default function Sidebar() {
@@ -24,6 +25,7 @@ export default function Sidebar() {
     { name: 'Analytics Center', path: '/analytics', icon: TrendingUp },
     { name: 'Savings Goals', path: '/goals', icon: Target },
     { name: 'AI Advisor', path: '/chat', icon: MessageSquare },
+    { name: 'Social Impact', path: '/social-impact', icon: Heart },
   ];
 
   return (
