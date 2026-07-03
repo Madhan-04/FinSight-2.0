@@ -1,6 +1,6 @@
 // Client-side IndexedDB database service for FinSight AI 3.0
 
-const DB_NAME = 'FinSightDB';
+const DB_NAME = 'FinSightDB_v3';
 const DB_VERSION = 1;
 
 export interface DBTransaction {

@@ -174,61 +174,11 @@ export const FinanceProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Load sample default data if database is empty on first load
-  const loadDefaultMockData = async () => {
-    const txs = await StorageService.getAll<Transaction>('transactions');
-    if (txs.length === 0) {
-      console.log("Database empty. Initializing with sample demo dataset.");
-      
-      const sampleStatement: DBStatement = {
-        filename: 'statement_june_2026.csv',
-        uploaded_at: new Date().toISOString(),
-        bank_name: 'HDFC Bank',
-        period: '01-06-2026 to 30-06-2026',
-        total_transactions: 12,
-        total_debits: 31250,
-        total_credits: 75000
-      };
-
-      const addedStmt = await StorageService.add<DBStatement>('statements', sampleStatement);
-      
-      const sampleTxs: DBTransaction[] = [
-        { date: '2026-06-01', raw_description: 'SALARY CREDIT FT', merchant: 'TCS Corp Payroll', amount: 75000, type: 'credit', category: 'Salary Credit', payment_method: 'NEFT', is_recurring: true, statement_id: addedStmt.id },
-        { date: '2026-06-02', raw_description: 'UPI/98765/FLATRENT/GPAY', merchant: 'Flat Rent Owner', amount: 15000, type: 'debit', category: 'Rent & Living', payment_method: 'UPI', is_recurring: true, statement_id: addedStmt.id },
-        { date: '2026-06-05', raw_description: 'UPI/54321/SWIGGY/FOOD', merchant: 'Swiggy', amount: 450, type: 'debit', category: 'Food & Dining', payment_method: 'UPI', is_recurring: false, statement_id: addedStmt.id },
-        { date: '2026-06-10', raw_description: 'ACH DEBIT HDFC HOME LOAN', merchant: 'HDFC Home Loan EMI', amount: 8500, type: 'debit', category: 'EMI Payments', payment_method: 'ACH Debit', is_recurring: true, statement_id: addedStmt.id },
-        { date: '2026-06-12', raw_description: 'UPI/33221/AMAZON/GPAY', merchant: 'Amazon Shopping', amount: 3200, type: 'debit', category: 'Shopping & Entertainment', payment_method: 'UPI', is_recurring: false, statement_id: addedStmt.id },
-        { date: '2026-06-15', raw_description: 'CARD/NETFLIX MEMBERSHIP', merchant: 'Netflix India', amount: 649, type: 'debit', category: 'Bills & Subscriptions', payment_method: 'Card', is_recurring: true, statement_id: addedStmt.id },
-        { date: '2026-06-18', raw_description: 'UPI/65432/ZOMATO/GPAY', merchant: 'Zomato Delivery', amount: 550, type: 'debit', category: 'Food & Dining', payment_method: 'UPI', is_recurring: false, statement_id: addedStmt.id },
-        { date: '2026-06-20', raw_description: 'UPI/77665/SPOTIFY/GPAY', merchant: 'Spotify Premium', amount: 119, type: 'debit', category: 'Bills & Subscriptions', payment_method: 'UPI', is_recurring: true, statement_id: addedStmt.id },
-        { date: '2026-06-22', raw_description: 'UPI/11223/Z zepto/GPAY', merchant: 'Zepto Groceries', amount: 1200, type: 'debit', category: 'Food & Dining', payment_method: 'UPI', is_recurring: false, statement_id: addedStmt.id },
-        { date: '2026-06-25', raw_description: 'UPI/33445/ELECTRICITY/GPAY', merchant: 'State Electricity Board', amount: 1850, type: 'debit', category: 'Bills & Subscriptions', payment_method: 'UPI', is_recurring: true, statement_id: addedStmt.id },
-        { date: '2026-06-28', raw_description: 'UPI/22998/ACTFIBRE/GPAY', merchant: 'ACT Fibernet Broadband', amount: 982, type: 'debit', category: 'Bills & Subscriptions', payment_method: 'UPI', is_recurring: true, statement_id: addedStmt.id },
-        { date: '2026-06-29', raw_description: 'UPI/65432/ZOMATO/GPAY', merchant: 'Zomato Delivery', amount: 550, type: 'debit', category: 'Food & Dining', payment_method: 'UPI', is_recurring: false, statement_id: addedStmt.id } // Duplicate anomaly
-      ];
-
-      await StorageService.bulkAdd<DBTransaction>('transactions', sampleTxs);
-
-      const sampleGoals: DBGoal[] = [
-        { name: 'Emergency Safety Contingency', target_amount: 50000, current_amount: 15000, target_date: '2026-12-31', category: 'Emergency' },
-        { name: 'Higher Education Savings', target_amount: 100000, current_amount: 25000, target_date: '2027-06-30', category: 'Education' }
-      ];
-      await StorageService.bulkAdd<DBGoal>('goals', sampleGoals);
-
-      const sampleChat: DBChatMessage[] = [
-        { sender: 'ai', message: 'Hello! I am your FinSight AI Advisor. I have loaded your sample statement for June 2026. You have a duplicate Swiggy/Zomato charge flagged. Ask me how to optimize your budget!', timestamp: new Date().toISOString() }
-      ];
-      await StorageService.bulkAdd<DBChatMessage>('chat_history', sampleChat);
-    }
-  };
-
+  // Database starts completely clean by default
   const fetchFinanceData = async () => {
     try {
       setLoading(true);
       setError(null);
-
-      // Initialize defaults if IndexedDB is fresh
-      await loadDefaultMockData();
 
       // 1. Fetch from Client-side IndexedDB
       const allTxs = await StorageService.getAll<Transaction>('transactions');
